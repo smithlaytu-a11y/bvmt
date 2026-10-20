@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BVMT Smart Screener & Scoring Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0f19',
+                        darkCard: '#151b26',
+                        darkBorder: '#242f41',
+                        accentGreen: '#10b981',
+                        accentRed: '#ef4444',
+                        accentBlue: '#3b82f6'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-darkBg text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
+
+    <!-- HEADER -->
+    <header class="border-b border-darkBorder bg-darkCard/80 backdrop-blur-md sticky top-0 z-40 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-accentBlue/20 text-accentBlue p-2 rounded-lg">
+                    <i data-lucide="activity" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white">BVMT Smart Screener</h1>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span class="relative flex h-2.5 w-2.5">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accentGreen opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-accentGreen"></span>
+                        </span>
+                        <p class="text-xs text-gray-400">Marché Tunisien (BVMT) — Live Simulation</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="btn-refresh" class="flex items-center gap-2 bg-accentBlue hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-lg shadow-accentBlue/10">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    Lancer le Scan
+                </button>
+                <button id="btn-export" class="flex items-center gap-2 border border-darkBorder hover:bg-darkBorder/50 text-gray-300 px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    Exporter CSV
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-6">
+        
+        <!-- SUMMARY KPI CARDS -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="bg-darkCard border border-darkBorder rounded-xl p-5">
+                <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Actions Analysées</p>
+                <div class="flex justify-between items-end mt-2">
+                    <h3 id="kpi-total" class="text-3xl font-bold text-white">0</h3>
+                    <span class="text-accentBlue bg-accentBlue/10 text-xs px-2.5 py-1 rounded-full font-medium">Actives</span>
+                </div>
+            </div>
+            <div class="bg-darkCard border border-darkBorder rounded-xl p-5">
+                <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Achat Fort 🟢</p>
+                <div class="flex justify-between items-end mt-2">
+                    <h3 id="kpi-buy" class="text-3xl font-bold text-accentGreen">0</h3>
+                    <span class="text-accentGreen bg-accentGreen/10 text-xs px-2.5 py-1 rounded-full font-medium">Score >= 65</span>
+                </div>
+            </div>
+            <div class="bg-darkCard border border-darkBorder rounded-xl p-5">
+                <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Attente (Sous MM) 🔴</p>
+                <div class="flex justify-between items-end mt-2">
+                    <h3 id="kpi-wait" class="text-3xl font-bold text-accentRed">0</h3>
+                    <span class="text-accentRed bg-accentRed/10 text-xs px-2.5 py-1 rounded-full font-medium">Attention</span>
+                </div>
+            </div>
+            <div class="bg-darkCard border border-darkBorder rounded-xl p-5">
+                <p class="text-xs text-gray-400 font-medium uppercase tracking-wider">Score Moyen Global</p>
+                <div class="flex justify-between items-end mt-2">
+                    <h3 id="kpi-avg-score" class="text-3xl font-bold text-yellow-500">0.0</h3>
+                    <span class="text-yellow-500 bg-yellow-500/10 text-xs px-2.5 py-1 rounded-full font-medium">/100</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREENER TOOLS -->
+        <div class="bg-darkCard border border-darkBorder rounded-xl p-5 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="relative w-full md:w-96">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+                    <i data-lucide="search" class="w-5 h-5"></i>
+                </span>
+                <input type="text" id="search-input" placeholder="Rechercher un ticker ou une entreprise..." 
+                    class="w-full pl-10 pr-4 py-2 bg-darkBg border border-darkBorder rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accentBlue focus:ring-1 focus:ring-accentBlue transition-all">
+            </div>
+            <div class="flex items-center gap-2 self-start md:self-auto">
+                <span class="text-xs text-gray-400">Filtre de Signal:</span>
+                <select id="signal-filter" class="bg-darkBg border border-darkBorder text-sm text-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-accentBlue">
+                    <option value="ALL">Tous les Signaux</option>
+                    <option value="ACHAT_FORT">ACHAT FORT 🟢</option>
+                    <option value="NEUTRE">NEUTRE ⚪</option>
+                    <option value="ATTENTE">ATTENTE 🔴</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- DATA TABLE -->
+        <div class="bg-darkCard border border-darkBorder rounded-xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-darkBg/50 border-b border-darkBorder text-gray-400 text-xs uppercase tracking-wider font-semibold">
+                            <th class="py-4 px-6 select-none cursor-pointer hover:text-white transition-colors" onclick="setSort('ticker')">
+                                <div class="flex items-center gap-1.5">Valeur <span id="sort-icon-ticker"></span></div>
+                            </th>
+                            <th class="py-4 px-6 text-right select-none cursor-pointer hover:text-white transition-colors" onclick="setSort('price')">
+                                <div class="flex items-center justify-end gap-1.5">Cours Actuel <span id="sort-icon-price"></span></div>
+                            </th>
+                            <th class="py-4 px-6 text-right select-none cursor-pointer hover:text-white transition-colors" onclick="setSort('mm20')">
+                                <div class="flex items-center justify-end gap-1.5">MM20 <span id="sort-icon-mm20"></span></div>
+                            </th>
+                            <th class="py-4 px-6 text-right select-none cursor-pointer hover:text-white transition-colors" onclick="setSort('per')">
+                                <div class="flex items-center justify-end gap-1.5">P/E (PER) <span id="sort-icon-per"></span></div>
+                            </th>
+                            <th class="py-4 px-6 text-right select-none cursor-pointer hover:text-white transition-colors" onclick="setSort('dividendYield')">
+                                <div class="flex items-center justify-end gap-1.5">Div. Yield (%) <span id="sort-icon-dividendYield"></span></div>
+                            </th>
+                            <th class="py-4 px-6 text-center select-none cursor-pointer hover:text-white transition-colors" onclick="setSort('scoreGlobal')">
+                                <div class="flex items-center justify-center gap-1.5">Score Global <span id="sort-icon-scoreGlobal"></span></div>
+                            </th>
+                            <th class="py-4 px-6 text-center">Signal Automatique</th>
+                            <th class="py-4 px-6 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-table-body" class="divide-y divide-darkBorder text-sm text-gray-300">
+                        <!-- Generated Dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODAL DRAWER (DETAIL SCORE BREAKDOWN) -->
+    <div id="modal-drawer" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex justify-end items-stretch transition-opacity duration-300">
+        <div class="bg-darkCard w-full max-w-lg border-l border-darkBorder p-6 flex flex-col justify-between overflow-y-auto animate-[slideIn_0.2s_ease-out]">
+            <div class="space-y-6">
+                <!-- Modal Header -->
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h2 id="modal-stock-name" class="text-2xl font-bold text-white">-</h2>
+                        <p id="modal-stock-ticker" class="text-sm text-gray-400 mt-1">-</p>
+                    </div>
+                    <button id="modal-close-btn" class="p-1 text-gray-400 hover:text-white hover:bg-darkBorder/50 rounded-lg transition-all">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+
+                <hr class="border-darkBorder">
+
+                <!-- Score Overview Radial-ish presentation -->
+                <div class="bg-darkBg/60 border border-darkBorder rounded-xl p-5 flex flex-col items-center justify-center">
+                    <span class="text-sm text-gray-400 font-medium uppercase tracking-wider mb-2">Score Global BVMT</span>
+                    <div class="text-5xl font-extrabold text-white flex items-baseline gap-1">
+                        <span id="modal-score-global">0</span>
+                        <span class="text-sm text-gray-500 font-normal">/ 100</span>
+                    </div>
+                    <span id="modal-badge-container" class="mt-3"></span>
+                </div>
+
+                <!-- Pillars breakdown -->
+                <div class="space-y-4">
+                    <h3 class="text-sm font-semibold text-gray-300 tracking-wider uppercase">Analyse par Piliers</h3>
+                    
+                    <!-- Fundamental Pillar -->
+                    <div class="bg-darkBg/30 border border-darkBorder rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-medium text-white flex items-center gap-2">
+                                <i data-lucide="database" class="w-4 h-4 text-accentBlue"></i>
+                                Fondamentaux (60%)
+                            </span>
+                            <span id="modal-score-fund" class="text-accentBlue font-bold">0 / 100</span>
+                        </div>
+                        <div class="space-y-3 text-xs text-gray-400">
+                            <div class="flex justify-between">
+                                <span>Ratio Cours/Bénéfices (PER):</span>
+                                <span id="modal-val-per" class="text-white font-medium">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Rendement Dividende (Yield):</span>
+                                <span id="modal-val-div" class="text-white font-medium">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Technical/Chartist Pillar -->
+                    <div class="bg-darkBg/30 border border-darkBorder rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-medium text-white flex items-center gap-2">
+                                <i data-lucide="trending-up" class="w-4 h-4 text-emerald-500"></i>
+                                Chartist & Tendances (40%)
+                            </span>
+                            <span id="modal-score-chart" class="text-emerald-500 font-bold">0 / 100</span>
+                        </div>
+                        <div class="space-y-3 text-xs text-gray-400">
+                            <div class="flex justify-between">
+                                <span>Cours Actuel vs MM20:</span>
+                                <span id="modal-val-chart-signal" class="text-white font-medium">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>MM50 (Tendance Macro):</span>
+                                <span id="modal-val-mm50" class="text-white font-medium">0 DT</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Close Button -->
+            <div class="mt-8 pt-4 border-t border-darkBorder">
+                <button id="modal-bottom-close-btn" class="w-full bg-darkBorder hover:bg-gray-800 text-white font-semibold py-2.5 rounded-lg transition-colors">
+                    Fermer la fiche
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-darkBorder py-6 bg-darkCard/30 mt-auto">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500">
+            <p>&copy; 2025 BVMT Smart Screener. Tous droits réservés.</p>
+            <p>Analyse automatique non-contractuelle. Consultez votre conseiller financier.</p>
+        </div>
+    </footer>
+
+    <!-- APPLICATION JS LOGIC -->
+    <script>
+        // Mock Data representing BVMT Listed Stocks
+        let stockDatabase = [
+            { ticker: "SFBT", name: "Société de Fabrication des Boissons de Tunisie", price: 13.50, mm20: 12.80, mm50: 12.90, per: 11.2, dividendYield: 6.8, slopingUp: true },
+            { ticker: "BIAT", name: "Banque Internationale Arabe de Tunisie", price: 92.40, mm20: 89.50, mm50: 87.00, per: 8.5, dividendYield: 7.2, slopingUp: true },
+            { ticker: "UIB", name: "Union Internationale de Banques", price: 24.10, mm20: 25.60, mm50: 25.00, per: 6.8, dividendYield: 8.5, slopingUp: false },
+            { ticker: "BNA", name: "Banque Nationale Agricole", price: 7.90, mm20: 8.20, mm50: 8.40, per: 5.4, dividendYield: 10.1, slopingUp: false },
+            { ticker: "SAH", name: "Société d'Articles Hygiéniques (Lilas)", price: 8.15, mm20: 7.80, mm50: 7.60, per: 15.3, dividendYield: 4.5, slopingUp: true },
+            { ticker: "PGH", name: "Poulina Group Holding", price: 7.50, mm20: 7.45, mm50: 7.70, per: 14.1, dividendYield: 5.0, slopingUp: true },
+            { ticker: "ASSAD", name: "L'Accumulateur Tunisien ASSAD", price: 0.85, mm20: 0.95, mm50: 1.05, per: 32.0, dividendYield: 0.0, slopingUp: false },
+            { ticker: "SOTIP", name: "SOTIPAPIER", price: 4.70, mm20: 4.40, mm50: 4.25, per: 9.9, dividendYield: 8.1, slopingUp: true },
+            { ticker: "Carthage", name: "Carthage Cement", price: 2.15, mm20: 2.05, mm50: 1.95, per: 12.5, dividendYield: 4.0, slopingUp: true },
+            { ticker: "BT", name: "Banque de Tunisie", price: 5.25, mm20: 5.30, mm50: 5.20, per: 9.0, dividendYield: 6.5, slopingUp: false }
+        ];
+
+        // Active App Data
+        let currentData = [];
+        let currentSort = { column: 'scoreGlobal', direction: 'desc' };
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            calculateScores();
+            renderTable();
+            updateKPIs();
+            lucide.createIcons();
+
+            // Event Listeners
+            document.getElementById('search-input').addEventListener('input', () => {
+                renderTable();
+            });
+
+            document.getElementById('signal-filter').addEventListener('change', () => {
+                renderTable();
+            });
+
+            document.getElementById('btn-refresh').addEventListener('click', () => {
+                simulateMarketUpdate();
+            });
+
+            document.getElementById('btn-export').addEventListener('click', () => {
+                exportToCSV();
+            });
+
+            // Modal close events
+            document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+            document.getElementById('modal-bottom-close-btn').addEventListener('click', closeModal);
+            window.addEventListener('click', (e) => {
+                if (e.target === document.getElementById('modal-drawer')) closeModal();
+            });
+        });
+
+        // Hybrid Scoring Calculation
+        function calculateScores() {
+            // Min-Max references for Scaling
+            const pers = stockDatabase.map(s => s.per);
+            const yields = stockDatabase.map(s => s.dividendYield);
+
+            const minPer = Math.min(...pers);
+            const maxPer = Math.max(...pers);
+            const minYield = Math.min(...yields);
+            const maxYield = Math.max(...yields);
+
+            currentData = stockDatabase.map(stock => {
+                // 1. Fundamental Component (60% Total Weight)
+                // PER (Lower is better): Inverted normalization
+                let normPer = (maxPer - stock.per) / (maxPer - minPer || 1);
+                // Yield (Higher is better): Standard normalization
+                let normYield = (stock.dividendYield - minYield) / (maxYield - minYield || 1);
+
+                let scoreFundamental = (0.5 * normPer + 0.5 * normYield) * 100;
+
+                // 2. Chartist / Technical Component (40% Total Weight)
+                // Signal is 1 if Price > MM20 AND slopingUp, else 0
+                let isAboveMM20 = stock.price > stock.mm20;
+                let signalMM = (isAboveMM20 && stock.slopingUp) ? 1 : 0;
+                let scoreChartist = signalMM * 100;
+
+                // 3. Global Combined Score
+                let scoreGlobal = (0.60 * scoreFundamental) + (0.40 * scoreChartist);
+
+                // 4. Action Signal Assignment
+                let action = "NEUTRE";
+                if (scoreGlobal >= 65 && signalMM === 1) {
+                    action = "ACHAT_FORT";
+                } else if (signalMM === 0) {
+                    action = "ATTENTE";
+                }
+
+                return {
+                    ...stock,
+                    scoreFundamental: Math.round(scoreFundamental),
+                    scoreChartist: Math.round(scoreChartist),
+                    scoreGlobal: Math.round(scoreGlobal),
+                    signalMM,
+                    action
+                };
+            });
+        }
+
+        // Render Stocks Table
+        function renderTable() {
+            const tbody = document.getElementById('stock-table-body');
+            const searchVal = document.getElementById('search-input').value.toLowerCase();
+            const signalVal = document.getElementById('signal-filter').value;
+
+            // Filtered values
+            let filtered = currentData.filter(stock => {
+                const matchesSearch = stock.ticker.toLowerCase().includes(searchVal) || 
+                                      stock.name.toLowerCase().includes(searchVal);
+                const matchesSignal = (signalVal === 'ALL') || (stock.action === signalVal);
+                return matchesSearch && matchesSignal;
+            });
+
+            // Sort items
+            filtered.sort((a, b) => {
+                let valA = a[currentSort.column];
+                let valB = b[currentSort.column];
+                
+                if (currentSort.direction === 'asc') {
+                    return valA > valB ? 1 : -1;
+                } else {
+                    return valA < valB ? 1 : -1;
+                }
+            });
+
+            // Render Loop
+            tbody.innerHTML = '';
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="py-8 text-center text-gray-500">
+                            Aucune action ne correspond aux critères actuels.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            filtered.forEach(stock => {
+                let actionBadge = '';
+                if (stock.action === 'ACHAT_FORT') {
+                    actionBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-accentGreen/10 text-accentGreen ring-1 ring-inset ring-accentGreen/20">🟢 ACHAT FORT</span>`;
+                } else if (stock.action === 'ATTENTE') {
+                    actionBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-accentRed/10 text-accentRed ring-1 ring-inset ring-accentRed/20">🔴 ATTENTE (Sous MM)</span>`;
+                } else {
+                    actionBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-500/10 text-gray-400 ring-1 ring-inset ring-gray-500/20">⚪ NEUTRE</span>`;
+                }
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-darkBorder/30 transition-colors duration-150">
+                        <td class="py-4 px-6">
+                            <div class="font-bold text-white">${stock.ticker}</div>
+                            <div class="text-xs text-gray-500 truncate max-w-[200px]">${stock.name}</div>
+                        </td>
+                        <td class="py-4 px-6 text-right font-medium text-white">${stock.price.toFixed(2)} DT</td>
+                        <td class="py-4 px-6 text-right">
+                            <span class="${stock.price >= stock.mm20 ? 'text-accentGreen' : 'text-accentRed'}">
+                                ${stock.mm20.toFixed(2)} DT
+                            </span>
+                        </td>
+                        <td class="py-4 px-6 text-right font-medium text-white">${stock.per.toFixed(1)}x</td>
+                        <td class="py-4 px-6 text-right font-medium text-accentGreen">${stock.dividendYield.toFixed(1)}%</td>
+                        <td class="py-4 px-6 text-center">
+                            <div class="inline-flex items-center justify-center font-bold px-3 py-1 rounded-lg ${getScoreBg(stock.scoreGlobal)}">
+                                ${stock.scoreGlobal} / 100
+                            </div>
+                        </td>
+                        <td class="py-4 px-6 text-center">${actionBadge}</td>
+                        <td class="py-4 px-6 text-center">
+                            <button onclick="openDetail('${stock.ticker}')" class="text-xs border border-darkBorder hover:bg-darkBorder/80 text-gray-300 font-semibold px-2.5 py-1.5 rounded-lg transition-all">
+                                Analyser
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            updateSortIcons();
+        }
+
+        // Helper for Score Badges Background
+        function getScoreBg(score) {
+            if (score >= 65) return 'bg-accentGreen/20 text-accentGreen';
+            if (score >= 45) return 'bg-yellow-500/20 text-yellow-500';
+            return 'bg-accentRed/20 text-accentRed';
+        }
+
+        // Sorting Configuration
+        function setSort(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'desc'; // default desc for financial performance metrics
+            }
+            renderTable();
+        }
+
+        // Update UI Sort Icons
+        function updateSortIcons() {
+            const headers = ['ticker', 'price', 'mm20', 'per', 'dividendYield', 'scoreGlobal'];
+            headers.forEach(h => {
+                const el = document.getElementById(`sort-icon-${h}`);
+                if (el) {
+                    if (currentSort.column === h) {
+                        el.innerHTML = currentSort.direction === 'asc' ? '▲' : '▼';
+                        el.className = 'text-xs text-accentBlue';
+                    } else {
+                        el.innerHTML = '⇅';
+                        el.className = 'text-xs text-gray-600';
+                    }
+                }
+            });
+        }
+
+        // Update Summary Indicators
+        function updateKPIs() {
+            const total = currentData.length;
+            const buy = currentData.filter(s => s.action === 'ACHAT_FORT').length;
+            const wait = currentData.filter(s => s.action === 'ATTENTE').length;
+            const avg = currentData.reduce((acc, curr) => acc + curr.scoreGlobal, 0) / total;
+
+            document.getElementById('kpi-total').innerText = total;
+            document.getElementById('kpi-buy').innerText = buy;
+            document.getElementById('kpi-wait').innerText = wait;
+            document.getElementById('kpi-avg-score').innerText = avg.toFixed(1);
+        }
+
+        // Dynamic Simulator Button Action
+        function simulateMarketUpdate() {
+            stockDatabase = stockDatabase.map(stock => {
+                // Small random fluctuation to keep presentation dynamic
+                const delta = (Math.random() - 0.48) * 0.10;
+                const nextPrice = Math.max(0.5, stock.price * (1 + delta));
+                const isUp = delta > 0;
+                return {
+                    ...stock,
+                    price: parseFloat(nextPrice.toFixed(2)),
+                    slopingUp: isUp
+                };
+            });
+            calculateScores();
+            renderTable();
+            updateKPIs();
+        }
+
+        // Open details sidebar
+        function openDetail(ticker) {
+            const stock = currentData.find(s => s.ticker === ticker);
+            if (!stock) return;
+
+            document.getElementById('modal-stock-name').innerText = stock.name;
+            document.getElementById('modal-stock-ticker').innerText = `${stock.ticker} (Tunis)`;
+            document.getElementById('modal-score-global').innerText = stock.scoreGlobal;
+            document.getElementById('modal-score-fund').innerText = `${stock.scoreFundamental} / 100`;
+            document.getElementById('modal-score-chart').innerText = `${stock.scoreChartist} / 100`;
+            document.getElementById('modal-val-per').innerText = `${stock.per}x`;
+            document.getElementById('modal-val-div').innerText = `${stock.dividendYield}%`;
+            
+            const cond = stock.price > stock.mm20 ? "Au-dessus de sa MM20" : "En dessous de sa MM20";
+            const signalChartText = `${cond} (${stock.price.toFixed(2)} vs ${stock.mm20.toFixed(2)})`;
+            document.getElementById('modal-val-chart-signal').innerText = signalChartText;
+            document.getElementById('modal-val-mm50').innerText = `${stock.mm50.toFixed(2)} DT`;
+
+            const badgeContainer = document.getElementById('modal-badge-container');
+            if (stock.action === 'ACHAT_FORT') {
+                badgeContainer.innerHTML = `<span class="px-4 py-1.5 rounded-full text-xs font-bold bg-accentGreen/15 text-accentGreen border border-accentGreen/25">ACHAT FORT 🟢</span>`;
+            } else if (stock.action === 'ATTENTE') {
+                badgeContainer.innerHTML = `<span class="px-4 py-1.5 rounded-full text-xs font-bold bg-accentRed/15 text-accentRed border border-accentRed/25">ATTENTE 🔴</span>`;
+            } else {
+                badgeContainer.innerHTML = `<span class="px-4 py-1.5 rounded-full text-xs font-bold bg-gray-500/15 text-gray-400 border border-gray-500/25">NEUTRE ⚪</span>`;
+            }
+
+            const modal = document.getElementById('modal-drawer');
+            modal.classList.remove('hidden');
+            modal.style.opacity = '1';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal-drawer');
+            modal.style.opacity = '0';
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
+        }
+
+        // Export table dataset directly to CSV format
+        function exportToCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Ticker,Nom,Cours Actuel (DT),MM20 (DT),PER,Dividend Yield (%),Score Global,Signal
+";
+
+            currentData.forEach(row => {
+                csvContent += `"${row.ticker}","${row.name}",${row.price},${row.mm20},${row.per},${row.dividendYield},${row.scoreGlobal},"${row.action}"
+`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "bvmt_smart_screener.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
